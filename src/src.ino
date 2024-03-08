@@ -57,35 +57,9 @@ int buttonDownState = 0;      // variable for reading the pushbutton 2 status
 int lastButtonUpState = 0;    // variable for setting the last pushbutton 1 status
 int lastButtonDownState = 0;  // variable for setting the last pushbutton 2 status
 
-// Define variables for the multiplexer states - buttons
-int muxC13State = 0;
-int muxC12State = 0;
-int muxC11State = 0;
-int muxC10State = 0;
-int muxC9State = 0;
-int muxC8State = 0;
-int muxC7State = 0;
-int muxC6State = 0;
-int muxC5State = 0;
-int muxC4State = 0;
-int muxC3State = 0;
-int muxC2State = 0;
-int muxC1State = 0;
-
-// Define variables for the last multiplexer states
-int muxC13LastState = 0;
-int muxC12LastState = 0;
-int muxC11LastState = 0;
-int muxC10LastState = 0;
-int muxC9LastState = 0;
-int muxC8LastState = 0;
-int muxC7LastState = 0;
-int muxC6LastState = 0;
-int muxC5LastState = 0;
-int muxC4LastState = 0;
-int muxC3LastState = 0;
-int muxC2LastState = 0;
-int muxC1LastState = 0;
+// Define arrays for button states and last states
+int muxButtonStates[13] = { 0 };  // 13 buttons
+int lastMuxButtonStates[13] = { 0 };
 
 ///////// FUNCTIONS DEFINITIONS //////////
 // Function to get the RGB color for the current octave
@@ -107,12 +81,11 @@ void setPixelsColorByOctave(int octave) {
 
 ///////// SETUP - run once at app start //////////
 void setup() {
+  Serial.begin(9600);  // Initialize serial communication at 9600 bps
 
   pixels.begin();             // Neopixel library function, sets up the communication with LEDs
   pixels.clear();             // Neopixel library function, clears the color data
   pixels.setBrightness(100);  // ??? setting the brightness of LED pixes (range 0-100)
-
-
 
   // LED blinking through all colors at app start
   for (int i = OCTAVE_MIN; i < OCTAVE_MAX; i++) {
@@ -129,7 +102,7 @@ void setup() {
 
   Control_Surface.begin();  //STOP
 
- // Set multiplexer pins as inputs with pull-up resistors
+  // Set multiplexer pins as inputs with pull-up resistors
   ExtIO::pinMode(mux.pin(13), INPUT_PULLUP);
   ExtIO::pinMode(mux.pin(12), INPUT_PULLUP);
   ExtIO::pinMode(mux.pin(11), INPUT_PULLUP);
@@ -143,29 +116,19 @@ void setup() {
   ExtIO::pinMode(mux.pin(3), INPUT_PULLUP);
   ExtIO::pinMode(mux.pin(2), INPUT_PULLUP);
   ExtIO::pinMode(mux.pin(1), INPUT_PULLUP);
-
-  Serial.begin(9600);  // Initialize serial communication at 9600 bps
 }
 
 ///////// LOOP - run repeatedly //////////
 void loop() {
 
+  // READ BUTTON STATES
   buttonUpState = digitalRead(BUTTON_UP_PIN);      // reads the button state from the physical button
   buttonDownState = digitalRead(BUTTON_DOWN_PIN);  // reads the button state from the physical button
 
-  muxC13State = ExtIO::digitalRead(mux.pin(13));
-  muxC12State = ExtIO::digitalRead(mux.pin(12));
-  muxC11State = ExtIO::digitalRead(mux.pin(11));
-  muxC10State = ExtIO::digitalRead(mux.pin(10));
-  muxC9State= ExtIO::digitalRead(mux.pin(9));
-  muxC8State= ExtIO::digitalRead(mux.pin(8));
-  muxC7State= ExtIO::digitalRead(mux.pin(7));
-  muxC6State= ExtIO::digitalRead(mux.pin(6));
-  muxC5State= ExtIO::digitalRead(mux.pin(5));
-  muxC4State= ExtIO::digitalRead(mux.pin(4));
-  muxC3State= ExtIO::digitalRead(mux.pin(3));
-  muxC2State= ExtIO::digitalRead(mux.pin(2));
-  muxC1State= ExtIO::digitalRead(mux.pin(1));
+  // Reading MUX button states
+  for (int i = 0; i < 13; i++) {
+    muxButtonStates[i] = !ExtIO::digitalRead(mux.pin(i + 1));  // the state is being read oposite, fix - invert the value here
+  }
 
   // button up control
   if (buttonUpState == 1 && buttonUpState != lastButtonUpState && octave < OCTAVE_MAX) {
@@ -189,30 +152,31 @@ void loop() {
     delay(50);  // delay before next step, alternative function is millis() -> non blocking
   }
 
-  // MUX buttons monitoring
+  // Mux buttons - check each button's state and compare with the last state
+  for (int i = 0; i < 13; i++) {
+    if (muxButtonStates[i] == 1 && muxButtonStates[i] != lastMuxButtonStates[i]) {
+      Serial.print("mux button was pressed: ");
+      Serial.print(i + 1);
+      Serial.print("---");
+      Serial.println(muxButtonStates[i]);
+      delay(50);  // Delay to prevent bouncing
+    }
 
-  if (muxC13State == 1 && muxC13State != muxC13LastState) {
-
-    Serial.print("---muxC13---");  // print text
-    Serial.println(muxC13State);
-    delay(50);
+    if (muxButtonStates[i] == 0 && muxButtonStates[i] != lastMuxButtonStates[i]) {
+      Serial.print("mux button was released: ");
+      Serial.print(i + 1);
+      Serial.print("---");
+      Serial.println(muxButtonStates[i]);
+      delay(50);  // Delay to prevent bouncing
+    }
   }
 
   // update button last state
   lastButtonUpState = buttonUpState;
   lastButtonDownState = buttonDownState;
 
-  muxC13LastState = muxC13State;
-  muxC12LastState = muxC12State;
-  muxC11LastState = muxC11State;
-  muxC10LastState = muxC10State;
-  muxC9LastState = muxC9State;
-  muxC8LastState = muxC8State;
-  muxC7LastState = muxC7State;
-  muxC6LastState = muxC6State;
-  muxC5LastState = muxC5State;
-  muxC4LastState = muxC4State;
-  muxC3LastState = muxC3State;
-  muxC2LastState = muxC2State;
-  muxC1LastState = muxC1State;
+  // Update last states for the next loop
+  for (int i = 0; i < 13; i++) {
+    lastMuxButtonStates[i] = muxButtonStates[i];
+  }
 }
