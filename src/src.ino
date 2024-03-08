@@ -68,6 +68,20 @@ int* getColorByOctave(int octave) {
   return result;
 }
 
+// Function to get pixel indexes for mux button index
+int* getPixelIdxssByMuxIdx(int muxtBtnIndex) {
+  // Declare an array to hold the pixel indexes
+  static int indexes[3];  // Use static to ensure the array remains in scope after the function returns
+
+  // Calculate the pixel indexes based on the mux button index
+  indexes[0] = 38 - muxtBtnIndex * 3;
+  indexes[1] = 38 - muxtBtnIndex * 3 - 1;
+  indexes[2] = 38 - muxtBtnIndex * 3 - 2;
+
+  // Return the address of the first element of the array
+  return indexes;
+}
+
 // Function to set all pixels to the color of the current octave
 void setPixelsColorByOctave(int octave) {
   int* currentColor = getColorByOctave(octave);
@@ -155,19 +169,35 @@ void loop() {
   // Mux buttons - check each button's state and compare with the last state
   for (int i = 0; i < 13; i++) {
     if (muxButtonStates[i] == 1 && muxButtonStates[i] != lastMuxButtonStates[i]) {
+      int* pixels = getPixelIdxssByMuxIdx(i);
       Serial.print("mux button was pressed: ");
       Serial.print(i + 1);
-      Serial.print("---");
-      Serial.println(muxButtonStates[i]);
-      delay(50);  // Delay to prevent bouncing
+      Serial.print(", pixels: ");
+      // Assuming the function returns an array of 3 elements
+      for (int i = 0; i < 3; i++) {
+        Serial.print(pixels[i]);
+        if (i < 2) {  // To separate the elements with a space or comma
+          Serial.print(", ");
+        }
+      }
+      Serial.println();  // To print a newline at the end
+      delay(50);         // Delay to prevent bouncing
     }
 
     if (muxButtonStates[i] == 0 && muxButtonStates[i] != lastMuxButtonStates[i]) {
+      int* pixels = getPixelIdxssByMuxIdx(i);
       Serial.print("mux button was released: ");
       Serial.print(i + 1);
-      Serial.print("---");
-      Serial.println(muxButtonStates[i]);
-      delay(50);  // Delay to prevent bouncing
+      Serial.print(", pixels: ");
+      // Assuming the function returns an array of 3 elements
+      for (int i = 0; i < 3; i++) {
+        Serial.print(pixels[i]);
+        if (i < 2) {  // To separate the elements with a space or comma
+          Serial.print(", ");
+        }
+      }
+      Serial.println();  // To print a newline at the end
+      delay(50);         // Delay to prevent bouncing
     }
   }
 
