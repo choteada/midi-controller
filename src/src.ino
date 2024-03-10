@@ -21,7 +21,7 @@ Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ80
 
 ///////// CONSTANTS DECLARATION //////////
 // Define RGB values for each octave
-const int colorsByOctave[9][3] = {
+const int COLORS_BY_OCTAVE[9][3] = {
   { 255, 0, 0 },
   { 255, 170, 0 },
   { 170, 255, 0 },
@@ -33,9 +33,15 @@ const int colorsByOctave[9][3] = {
   { 255, 0, 170 }
 };
 
+// Define active color
+const int ACTIVE_COLOR[3] = { 255, 255, 255 };
+
+// Define Mux button count
+const int MUX_BUTTON_COUNT = 13;
+
 // Define the minimum and maximum octave values
-const int OCTAVE_MIN = 0;                                                       // minimal octave value
-const int OCTAVE_MAX = sizeof(colorsByOctave) / sizeof(colorsByOctave[0]) - 1;  // maximal octave value
+const int OCTAVE_MIN = 0;                                                           // minimal octave value
+const int OCTAVE_MAX = sizeof(COLORS_BY_OCTAVE) / sizeof(COLORS_BY_OCTAVE[0]) - 1;  // maximal octave value
 
 // Define pins for the up and down buttons
 const int BUTTON_UP_PIN = 3;    // the number of the pushbutton 1 pin
@@ -64,7 +70,7 @@ int lastMuxButtonStates[13] = { 0 };
 ///////// FUNCTIONS DEFINITIONS //////////
 // Function to get the RGB color for the current octave
 int* getColorByOctave(int octave) {
-  int* result = colorsByOctave[octave];
+  int* result = COLORS_BY_OCTAVE[octave];
   return result;
 }
 
@@ -91,6 +97,38 @@ void setPixelsColorByOctave(int octave) {
   }  // set the color the current octava value to every LED pixel
 
   pixels.show();  // Neopixel library function, updates the physical LEDs
+}
+
+// Function to set selected pixels according to given state
+void setSelectedPixelsColorByState(int* pixelIndexes, int octave, bool active) {
+  int* currentOctaveColor = getColorByOctave(octave);
+  // if active = true, set pixel colors to white
+  if (active) {
+    Serial.print("tady by se to melo zmenit-zmacknuto");
+    Serial.println();
+    for (int i = 0; i < 3; i++) {
+      Serial.println(pixelIndexes[i]);
+      Serial.println(ACTIVE_COLOR[0]);
+      pixels.setPixelColor(pixelIndexes[i], pixels.Color(ACTIVE_COLOR[0], ACTIVE_COLOR[1], ACTIVE_COLOR[2]));
+    }
+  }
+  // if active = false, set pixel colers to octave
+  else {
+    for (int i = 0; i < 3; i++) {
+      pixels.setPixelColor(pixelIndexes[i], pixels.Color(currentOctaveColor[0], currentOctaveColor[1], currentOctaveColor[2]));
+    }
+  }
+  pixels.show();
+}
+
+// Function to set active mux buttons back to white
+void setMuxPixelsToActiveColor() {
+  for (int i = 0; i < MUX_BUTTON_COUNT; i++) {
+    if (muxButtonStates[i] == 1) {
+      int* pixels = getPixelIdxssByMuxIdx(i);
+      setSelectedPixelsColorByState(pixels, octave, true);
+    }
+  }
 }
 
 ///////// SETUP - run once at app start //////////
@@ -140,11 +178,11 @@ void loop() {
   buttonDownState = digitalRead(BUTTON_DOWN_PIN);  // reads the button state from the physical button
 
   // Reading MUX button states
-  for (int i = 0; i < 13; i++) {
+  for (int i = 0; i < MUX_BUTTON_COUNT; i++) {
     muxButtonStates[i] = !ExtIO::digitalRead(mux.pin(i + 1));  // the state is being read oposite, fix - invert the value here
   }
 
-  // button up control
+  // button up control - OCTAVE UP
   if (buttonUpState == 1 && buttonUpState != lastButtonUpState && octave < OCTAVE_MAX) {
     octave++;
 
@@ -152,10 +190,12 @@ void loop() {
     Serial.println(octave);           // print current octave value
 
     setPixelsColorByOctave(octave);
+    // for pressed mux buttons to be changed to white immediately
+    setMuxPixelsToActiveColor();
     delay(50);  // delay before next step, alternative function is millis() -> non blocking
   }
 
-  // button down control
+  // button down control - OCTAVE DOWN
   if (buttonDownState == 1 && buttonDownState != lastButtonDownState && octave > OCTAVE_MIN) {
     octave--;
 
@@ -163,13 +203,18 @@ void loop() {
     Serial.println(octave);             // print current octave value
 
     setPixelsColorByOctave(octave);
+    // for pressed mux buttons to be changed to white immediately
+    setMuxPixelsToActiveColor();
     delay(50);  // delay before next step, alternative function is millis() -> non blocking
   }
 
   // Mux buttons - check each button's state and compare with the last state
-  for (int i = 0; i < 13; i++) {
+  for (int i = 0; i < MUX_BUTTON_COUNT; i++) {
+    // button is pressed
     if (muxButtonStates[i] == 1 && muxButtonStates[i] != lastMuxButtonStates[i]) {
       int* pixels = getPixelIdxssByMuxIdx(i);
+      setSelectedPixelsColorByState(pixels, octave, true);
+
       Serial.print("mux button was pressed: ");
       Serial.print(i + 1);
       Serial.print(", pixels: ");
@@ -183,9 +228,10 @@ void loop() {
       Serial.println();  // To print a newline at the end
       delay(50);         // Delay to prevent bouncing
     }
-
+    // button is released
     if (muxButtonStates[i] == 0 && muxButtonStates[i] != lastMuxButtonStates[i]) {
       int* pixels = getPixelIdxssByMuxIdx(i);
+      setSelectedPixelsColorByState(pixels, octave, false);
       Serial.print("mux button was released: ");
       Serial.print(i + 1);
       Serial.print(", pixels: ");
@@ -206,7 +252,7 @@ void loop() {
   lastButtonDownState = buttonDownState;
 
   // Update last states for the next loop
-  for (int i = 0; i < 13; i++) {
+  for (int i = 0; i < MUX_BUTTON_COUNT; i++) {
     lastMuxButtonStates[i] = muxButtonStates[i];
   }
 }
